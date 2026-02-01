@@ -30,6 +30,10 @@ namespace LiteNetLibManager
         private readonly HashSet<uint> _subscribingsPool = new HashSet<uint>();
         private readonly HashSet<LiteNetLibIdentity> _nearbyEntitiesPool = new HashSet<LiteNetLibIdentity>();
         private readonly List<Vector3Int> _cellsToCheck = new List<Vector3Int>();
+        
+        // Pooled collections for UpdateSpatialGrid to avoid GC pressure
+        private readonly HashSet<LiteNetLibIdentity> _seenEntitiesPool = new HashSet<LiteNetLibIdentity>();
+        private readonly List<LiteNetLibIdentity> _toRemovePool = new List<LiteNetLibIdentity>();
 
         // Object pool for HashSets in the spatial grid
         private readonly Stack<HashSet<LiteNetLibIdentity>> _hashSetPool = new Stack<HashSet<LiteNetLibIdentity>>();
@@ -79,15 +83,15 @@ namespace LiteNetLibManager
             // Get all spawned objects
             var spawnedObjects = Manager.Assets.GetSpawnedObjects();
             
-            // Track entities we've seen this frame
-            HashSet<LiteNetLibIdentity> seenEntities = new HashSet<LiteNetLibIdentity>();
+            // Track entities we've seen this frame (using pooled collection)
+            _seenEntitiesPool.Clear();
 
             foreach (LiteNetLibIdentity entity in spawnedObjects)
             {
                 if (entity == null)
                     continue;
 
-                seenEntities.Add(entity);
+                _seenEntitiesPool.Add(entity);
                 Vector3Int newCell = GetCellKey(entity.transform.position);
 
                 // Check if entity moved to a new cell
@@ -116,17 +120,17 @@ namespace LiteNetLibManager
                 }
             }
 
-            // Clean up removed entities
-            List<LiteNetLibIdentity> toRemove = new List<LiteNetLibIdentity>();
+            // Clean up removed entities (using pooled collection)
+            _toRemovePool.Clear();
             foreach (var kvp in _entityCells)
             {
-                if (!seenEntities.Contains(kvp.Key))
+                if (!_seenEntitiesPool.Contains(kvp.Key))
                 {
-                    toRemove.Add(kvp.Key);
+                    _toRemovePool.Add(kvp.Key);
                 }
             }
 
-            foreach (var entity in toRemove)
+            foreach (var entity in _toRemovePool)
             {
                 if (_entityCells.TryGetValue(entity, out Vector3Int cell))
                 {
