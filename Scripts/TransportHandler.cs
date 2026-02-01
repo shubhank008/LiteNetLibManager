@@ -73,9 +73,9 @@ namespace LiteNetLibManager
                 ProceedResponse(connectionId, reader);
                 return;
             }
-            if (!_messageHandlers.ContainsKey(messageType))
+            if (!_messageHandlers.TryGetValue(messageType, out MessageHandlerDelegate handler))
                 return;
-            _messageHandlers[messageType].Invoke(new MessageHandlerData(messageType, this, connectionId, reader));
+            handler.Invoke(new MessageHandlerData(messageType, this, connectionId, reader));
         }
 
         public static void WritePacket(
@@ -151,20 +151,20 @@ namespace LiteNetLibManager
             SerializerDelegate extraRequestSerializer)
             where TRequest : INetSerializable, new()
         {
-            if (!_responseHandlers.ContainsKey(requestType))
+            if (!_responseHandlers.TryGetValue(requestType, out ILiteNetLibResponseHandler responseHandler))
             {
                 responseDelegate.Invoke(new ResponseHandlerData(_nextRequestId++, this, -1, null), AckResponseCode.Unimplemented, EmptyMessage.Value);
                 Logging.LogError(LogTag, $"Cannot create request. Request type: {requestType} not registered.");
                 return false;
             }
-            if (!_responseHandlers[requestType].IsRequestTypeValid(typeof(TRequest)))
+            if (!responseHandler.IsRequestTypeValid(typeof(TRequest)))
             {
                 responseDelegate.Invoke(new ResponseHandlerData(_nextRequestId++, this, -1, null), AckResponseCode.Unimplemented, EmptyMessage.Value);
                 Logging.LogError(LogTag, $"Cannot create request. Request type: {requestType}, {typeof(TRequest)} is not valid message type.");
                 return false;
             }
             // Create request
-            uint requestId = CreateRequest(_responseHandlers[requestType], responseDelegate);
+            uint requestId = CreateRequest(responseHandler, responseDelegate);
             HandleRequestTimeout(requestId, millisecondsTimeout).Forget();
             // Write request
             writer.Reset();
@@ -188,7 +188,7 @@ namespace LiteNetLibManager
         {
             ushort requestType = reader.GetPackedUShort();
             uint requestId = reader.GetPackedUInt();
-            if (!_requestHandlers.ContainsKey(requestType))
+            if (!_requestHandlers.TryGetValue(requestType, out ILiteNetLibRequestHandler requestHandler))
             {
                 // No request-response handler
                 RequestProceeded(connectionId, requestId, AckResponseCode.Unimplemented, EmptyMessage.Value, null);
@@ -198,7 +198,7 @@ namespace LiteNetLibManager
             // Invoke request and create response
             try
             {
-                _requestHandlers[requestType].InvokeRequest(new RequestHandlerData(requestType, requestId, this, connectionId, reader), RequestProceeded);
+                requestHandler.InvokeRequest(new RequestHandlerData(requestType, requestId, this, connectionId, reader), RequestProceeded);
             }
             catch (System.Exception ex)
             {
@@ -239,10 +239,9 @@ namespace LiteNetLibManager
         {
             uint requestId = reader.GetPackedUInt();
             AckResponseCode responseCode = reader.GetValue<AckResponseCode>();
-            if (_requestCallbacks.ContainsKey(requestId))
+            if (_requestCallbacks.TryRemove(requestId, out LiteNetLibRequestCallback callback))
             {
-                _requestCallbacks[requestId].Response(connectionId, reader, responseCode);
-                _requestCallbacks.TryRemove(requestId, out _);
+                callback.Response(connectionId, reader, responseCode);
             }
         }
 
