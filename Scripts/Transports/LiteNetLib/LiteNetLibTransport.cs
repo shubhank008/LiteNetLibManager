@@ -114,9 +114,9 @@ namespace LiteNetLibManager
 
         public bool ServerSend(long connectionId, byte dataChannel, DeliveryMethod deliveryMethod, NetDataWriter writer)
         {
-            if (IsServerStarted && _serverPeers.ContainsKey(connectionId) && _serverPeers[connectionId].ConnectionState == ConnectionState.Connected)
+            if (IsServerStarted && _serverPeers.TryGetValue(connectionId, out NetPeer peer) && peer.ConnectionState == ConnectionState.Connected)
             {
-                _serverPeers[connectionId].Send(writer, dataChannel, deliveryMethod);
+                peer.Send(writer, dataChannel, deliveryMethod);
                 return true;
             }
             return false;
@@ -124,9 +124,9 @@ namespace LiteNetLibManager
 
         public bool ServerDisconnect(long connectionId)
         {
-            if (IsServerStarted && _serverPeers.ContainsKey(connectionId))
+            if (IsServerStarted && _serverPeers.TryGetValue(connectionId, out NetPeer peer))
             {
-                Server.DisconnectPeer(_serverPeers[connectionId]);
+                Server.DisconnectPeer(peer);
                 _serverPeers.Remove(connectionId);
                 return true;
             }

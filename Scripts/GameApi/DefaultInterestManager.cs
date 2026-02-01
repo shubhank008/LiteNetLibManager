@@ -9,6 +9,7 @@ namespace LiteNetLibManager
         public float updateInterval = 1f;
 
         private float _updateCountDown;
+        private readonly HashSet<uint> _subscribingsPool = new HashSet<uint>();
 
         public override void Setup(LiteNetLibGameManager manager)
         {
@@ -22,7 +23,6 @@ namespace LiteNetLibManager
             if (_updateCountDown > 0)
                 return;
             _updateCountDown = updateInterval;
-            HashSet<uint> subscribings = new HashSet<uint>();
             foreach (LiteNetLibPlayer player in Manager.GetPlayers())
             {
                 if (!player.IsReady)
@@ -33,13 +33,13 @@ namespace LiteNetLibManager
                 foreach (LiteNetLibIdentity playerObject in player.GetSpawnedObjects())
                 {
                     // Update subscribing list, it will unsubscribe objects which is not in this list
-                    subscribings.Clear();
+                    _subscribingsPool.Clear();
                     foreach (LiteNetLibIdentity spawnedObject in Manager.Assets.GetSpawnedObjects())
                     {
                         if (ShouldSubscribe(playerObject, spawnedObject))
-                            subscribings.Add(spawnedObject.ObjectId);
+                            _subscribingsPool.Add(spawnedObject.ObjectId);
                     }
-                    playerObject.UpdateSubscribings(subscribings);
+                    playerObject.UpdateSubscribings(_subscribingsPool);
                 }
             }
         }

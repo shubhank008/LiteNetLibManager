@@ -286,20 +286,20 @@ namespace LiteNetLibManager
 
         public LiteNetLibIdentity GetObjectInstance(int hashAssetId, Vector3 position, Quaternion rotation)
         {
-            if (PooledObjects.ContainsKey(hashAssetId) && PooledObjects[hashAssetId].Count > 0)
+            if (PooledObjects.TryGetValue(hashAssetId, out Queue<LiteNetLibIdentity> poolQueue) && poolQueue.Count > 0)
             {
                 // Get pooled instance
-                LiteNetLibIdentity instance = PooledObjects[hashAssetId].Dequeue();
+                LiteNetLibIdentity instance = poolQueue.Dequeue();
                 instance.OnGetInstance();
                 instance.transform.position = position;
                 instance.transform.rotation = rotation;
                 return instance;
             }
 
-            if (GuidToPrefabs.ContainsKey(hashAssetId))
+            if (GuidToPrefabs.TryGetValue(hashAssetId, out LiteNetLibIdentity prefab))
             {
                 // Create a new instance
-                LiteNetLibIdentity instance = Instantiate(GuidToPrefabs[hashAssetId], position, rotation);
+                LiteNetLibIdentity instance = Instantiate(prefab, position, rotation);
                 instance.gameObject.SetActive(false);
                 return instance;
             }
