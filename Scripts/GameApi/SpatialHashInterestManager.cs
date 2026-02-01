@@ -227,26 +227,24 @@ namespace LiteNetLibManager
         }
 
         /// <summary>
-        /// Override to provide optimized subscription for new objects
+        /// Called when a new object is spawned to add it to the spatial grid.
+        /// This method should be called after the base NotifyNewObject is invoked.
         /// </summary>
-        public new void NotifyNewObject(LiteNetLibIdentity newObject)
+        public void AddToSpatialGrid(LiteNetLibIdentity newObject)
         {
-            if (!IsServer)
+            if (!IsServer || newObject == null)
                 return;
 
             // Add the new object to the spatial grid immediately
             Vector3Int cell = GetCellKey(newObject.transform.position);
             GetOrCreateCell(cell).Add(newObject);
             _entityCells[newObject] = cell;
-
-            // Let base class handle the subscription logic
-            base.NotifyNewObject(newObject);
         }
 
         /// <summary>
         /// Clean up when an object is destroyed
         /// </summary>
-        public void NotifyObjectDestroyed(LiteNetLibIdentity destroyedObject)
+        public void RemoveFromSpatialGrid(LiteNetLibIdentity destroyedObject)
         {
             if (_entityCells.TryGetValue(destroyedObject, out Vector3Int cell))
             {
